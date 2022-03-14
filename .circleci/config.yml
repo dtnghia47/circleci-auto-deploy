@@ -13,6 +13,31 @@ orbs:
   # NOTE: Environment variables containing the necessary secrets can be setup in the CircleCI UI
   # See here https://circleci.com/docs/2.0/env-vars/#setting-an-environment-variable-in-a-project
   aws-s3: circleci/aws-s3@2.0
+  # Slack
+  slack: circleci/slack@4.8.3
+
+jobs:
+  notify:
+    docker:
+      - image: 'cimg/base:stable'
+    steps:
+      - slack/notify:
+          custom: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "plain_text",
+                      "text": "*This is a text notification*",
+                      "emoji": true
+                    }
+                  ]
+                }
+              ]
+            }
+          event: always
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
@@ -20,6 +45,8 @@ workflows:
   sample: # This is the name of the workflow, feel free to change it to better match your workflow.
     # Inside the workflow, you define the jobs you want to run.
     jobs:
+      - notify:
+          context: slack-secrets
       - node/test:
           version: "15.1"
           # after the node/test job completes, build the dist packages and save them to a workspace
