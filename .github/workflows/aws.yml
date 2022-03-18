@@ -1,7 +1,7 @@
 name: Finastra Dashboard Test
 on:
   pull_request:
-    branches: [master]
+    branches: [main]
 env:
   REACT_APP_NODE_PATH: ./src
   SASS_PATH: ./node_modules;./src
