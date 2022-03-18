@@ -1,0 +1,52 @@
+name: Finastra Dashboard Test
+on:
+  pull_request:
+    branches: [master]
+env:
+  REACT_APP_NODE_PATH: ./src
+  SASS_PATH: ./node_modules;./src
+  CI: false
+  AWS_S3_BUCKET_UAT: s3://ll-test-ci
+  AWS_DISTRIBUTION_ID: EB62DRTNPWQTU
+
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Dump GitHub context
+        if: github.event.pull_request
+        env:
+          PULL_REQUEST_BODY: ${{ toJson(github.event.pull_request.body) }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          AWS_S3_BUCKET_UAT: ${{ fromJSON(github.event.pull_request.body).AWS_S3_BUCKET_UAT }}
+          AWS_DISTRIBUTION_ID: ${{ fromJSON(github.event.pull_request.body).AWS_DISTRIBUTION_ID }}
+        run: |
+          echo "$PULL_REQUEST_BODY"
+          echo "PULL_REQUEST_NUMBER: ${{ env.PULL_REQUEST_NUMBER }}"
+          echo "AWS_S3_BUCKET_UAT: ${{ env.AWS_S3_BUCKET_UAT }}
+          echo "AWS_DISTRIBUTION_ID: ${{ env.AWS_DISTRIBUTION_ID }}
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "12"
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run deploy
+      - name: Set AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-1
+          role-duration-seconds: 1200
+
+      - name: Copy files to the test website with the AWS CLI
+        run: |
+          aws s3 rm ${{ env.AWS_S3_BUCKET_UAT }} --recursive
+          aws s3 sync ./build ${{ env.AWS_S3_BUCKET_UAT }}
+          aws cloudfront create-invalidation --distribution-id ${{ env.AWS_DISTRIBUTION_ID }} --paths '/*';
